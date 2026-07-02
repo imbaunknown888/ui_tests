@@ -1,0 +1,7 @@
+commands to run:
+
+cd /NBank-tests
+pip install -r requirements.txt
+playwright install
+python -m playwright install --with-deps
+pytest 
