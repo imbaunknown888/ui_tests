@@ -4,3 +4,7 @@ pydantic
 softest
 rstr
 pytest-playwright
+Faker
+allure-pytest
+pytest-xdist
+psycopg[binary]
