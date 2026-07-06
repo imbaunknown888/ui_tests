@@ -1,14 +1,12 @@
 import pytest
-from playwright.sync_api import Page
 
 from src.main.api.utils.normalize_browsers import norm_browser_name
-from src.main.ui.pages.login_page import LoginPage
 from src.main.api.classes.session_storage import SessionStorage
 from src.main.api.models.create_user_request import CreateUserRequest
 
 
-@pytest.fixture(autouse=True, scope="function")
-def user_session_extension(request, page, user_factory):
+@pytest.fixture(scope="function")
+def user_session_extension(request: pytest.FixtureRequest, user_factory):
     SessionStorage.clear()
     mark = request.node.get_closest_marker("user_session")
     if not mark:
@@ -19,23 +17,29 @@ def user_session_extension(request, page, user_factory):
 
     users: list[CreateUserRequest] = [user_factory() for _ in range(count)]
     SessionStorage.add_users(users)
+    # UI login is needed only for UI tests. We resolve page lazily so API runs don't pull Playwright.
+    page = request.getfixturevalue("page")
+    from src.main.ui.pages.login_page import LoginPage
+
     LoginPage(page).auth_as_user(users[auth_index])
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def admin_session_autologin(
     request: pytest.FixtureRequest, 
-    page: Page, 
     admin_user_request: CreateUserRequest
 ):
     mark = request.node.get_closest_marker("admin_session")
     if not mark:
         return
 
+    page = request.getfixturevalue("page")
+    from src.main.ui.pages.login_page import LoginPage
+
     LoginPage(page).auth_as_user(admin_user_request)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def browser_match_guard(request):
     mark = request.node.get_closest_marker("browsers")
     if not mark:
@@ -50,5 +54,6 @@ def browser_match_guard(request):
     except Exception:
         return
 
-    if norm_browser_name(str(current)) not in allowed:
-        pytest.skip(f"Пропущен: текущий браузер '{current}' не в {sorted(allowed)}")
+    # No runtime skip here: we filter browsers at collection-time in root conftest.py,
+    # so we don't pollute reports with SKIPPED.
+    return

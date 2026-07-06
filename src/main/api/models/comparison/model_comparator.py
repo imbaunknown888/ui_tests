@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 from dataclasses import dataclass
+from decimal import Decimal
 
 
 @dataclass
@@ -30,10 +31,20 @@ class ModelComparator:
             request_value = ModelComparator._get_field_value(request, request_field)
             response_value = ModelComparator._get_field_value(response, response_field)
 
-            if str(request_value) != str(response_value):
+            if not ModelComparator._values_equal(request_value, response_value):
                 mismatches.append(Mismatch(f'{request_field} -> {response_field}', request_value, response_value))
         
         return ComparisonResult(mismatches)
+
+    @staticmethod
+    def _values_equal(left: Any, right: Any) -> bool:
+        # Handle DB Decimal vs API float/int comparisons
+        if isinstance(left, Decimal) or isinstance(right, Decimal):
+            try:
+                return Decimal(str(left)) == Decimal(str(right))
+            except Exception:
+                return str(left) == str(right)
+        return str(left) == str(right)
 
     def _get_field_value(obj: Any, field_name: str):
         current_class = obj.__class__
