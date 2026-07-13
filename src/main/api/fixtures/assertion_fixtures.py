@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Optional
 
 import pytest
@@ -30,8 +31,19 @@ def _resolve_source(request: pytest.FixtureRequest, source: str) -> Any:
         value = request.getfixturevalue(root)
 
     for attr in parts[1:]:
-        value = getattr(value, attr)
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and attr.isdigit():
+            value = value[int(attr)]
+        else:
+            value = getattr(value, attr)
     return value
+
+
+def _get_account_balance(api_manager: ApiManager, user_request: CreateUserRequest, account_id: int) -> float:
+    account = next(
+        account for account in api_manager.user_steps.get_all_accounts(user_request)
+        if account.id == account_id
+    )
+    return float(account.balance)
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -91,8 +103,8 @@ def check_all_users_change(request: pytest.FixtureRequest, created_objects):
 
     # In xdist (or other parallel runs) global "count delta" is not stable, because other tests
     # can create/delete users between our before/after snapshots. Allow opting into strict mode.
-    strict_delta = bool(mark.kwargs.get("strict_delta", False))
     running_xdist = hasattr(request.config, "workerinput")
+    strict_delta = bool(mark.kwargs.get("strict_delta", not running_xdist))
 
     api_manager: ApiManager = request.getfixturevalue("api_manager")
 
@@ -170,4 +182,58 @@ def check_accounts_change(request: pytest.FixtureRequest):
         f"Expected accounts delta={delta} (after-before), but got {len(after) - len(before)}. "
         f"before={len(before)}, after={len(after)}"
     )
+
+
+@pytest.fixture(autouse=True, scope="function")
+def check_account_balance_change(request: pytest.FixtureRequest):
+    """
+    Marker-driven balance verification for an existing account.
+
+    Usage:
+      @pytest.mark.check_account_balance_change(
+          user_source="prepared_user_accounts.0.user",
+          account_id_source="prepared_user_accounts.0.account.id",
+          delta_source="deposit_amount",
+      )
+    """
+    marks = list(request.node.iter_markers("check_account_balance_change"))
+    if not marks:
+        yield
+        return
+
+    api_manager: ApiManager = request.getfixturevalue("api_manager")
+    snapshots: list[tuple[CreateUserRequest, int, float, Optional[float], float]] = []
+
+    for mark in marks:
+        user_source = mark.kwargs["user_source"]
+        account_id_source = mark.kwargs["account_id_source"]
+        delta_source = mark.kwargs.get("delta_source")
+        expected_balance_source = mark.kwargs.get("expected_balance_source")
+        direction = float(mark.kwargs.get("direction", 1))
+
+        user_request: CreateUserRequest = _resolve_source(request, str(user_source))
+        account_id = int(_resolve_source(request, str(account_id_source)))
+        delta = float(_resolve_source(request, str(delta_source))) * direction if delta_source is not None else 0.0
+        expected_balance = (
+            float(_resolve_source(request, str(expected_balance_source)))
+            if expected_balance_source is not None
+            else None
+        )
+
+        before_balance = _get_account_balance(api_manager, user_request, account_id)
+        snapshots.append((user_request, account_id, before_balance, expected_balance, delta))
+
+    yield
+
+    for user_request, account_id, before_balance, expected_balance, delta in snapshots:
+        after_balance = _get_account_balance(api_manager, user_request, account_id)
+
+        assert after_balance - before_balance == pytest.approx(delta), (
+            f"Expected account {account_id} balance delta={delta}, "
+            f"but got {after_balance - before_balance}. before={before_balance}, after={after_balance}"
+        )
+        if expected_balance is not None:
+            assert after_balance == pytest.approx(expected_balance), (
+                f"Expected account {account_id} balance={expected_balance}, but got {after_balance}"
+            )
 
