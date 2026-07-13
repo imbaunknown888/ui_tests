@@ -19,7 +19,7 @@ class TestUpdateProfile:
         prepared_users: list[CreateUserRequest],
     ):
         user = prepared_users[0]
-        new_name = RandomData.get_name()
+        new_name = RandomData.get_profile_name()
 
         ProfilePage(page).auth_as_user(user)
         ProfilePage(page).open() \

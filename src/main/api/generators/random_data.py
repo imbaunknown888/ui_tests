@@ -1,4 +1,5 @@
 import random
+import string
 from faker import Faker
 
 faker = Faker()
@@ -26,3 +27,7 @@ class RandomData:
     @staticmethod
     def get_name() -> str:
         return f"{faker.first_name()} {faker.last_name()}"
+
+    @staticmethod
+    def get_profile_name() -> str:
+        return ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()

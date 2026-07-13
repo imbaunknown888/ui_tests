@@ -15,15 +15,18 @@ from src.main.ui.pages.bank_alert import BankAlert
 @pytest.mark.ui
 @pytest.mark.usefixtures("admin_session_autologin", "browser_match_guard")
 class TestCreateUser:
+    @pytest.fixture()
+    def new_user_request(self) -> CreateUserRequest:
+        return RandomModelGenerator.generate(CreateUserRequest)
+
     @pytest.mark.admin_session
-    @pytest.mark.parametrize('new_user_request', [RandomModelGenerator.generate(CreateUserRequest)])
     @pytest.mark.entity_will_be_created("new_user_request")
     @pytest.mark.check_all_users_change(delta=1, username_source="new_user_request.username")
     def test_admin_can_create_user(self, page: Page, api_manager: ApiManager, new_user_request: CreateUserRequest):     
         admin_page = AdminPanel(page).open() \
         .check_page_is_visible() \
         .check_alert_message_and_accept(BankAlert.USER_CREATED_SUCCESSFULLY) \
-        .create_user(new_user_request.username, new_user_request.password) \
+        .create_user(new_user_request.username, new_user_request.password, wait_for_users_refresh=True) \
         .wait_for_username(new_user_request.username)
 
         all_users_after = api_manager.admin_steps.get_all_users()

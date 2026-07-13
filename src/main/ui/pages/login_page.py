@@ -10,7 +10,7 @@ class LoginPage(BasePage):
         return "/login"
     
     def login(self, username: str, password: str):
-        self.username_input.fill(username)
-        self.password_input.fill(password)
-        self.login_button.click()
+        self.fill_text(self.username_input, username)
+        self.fill_text(self.password_input, password)
+        self.click_element(self.login_button)
         return self
