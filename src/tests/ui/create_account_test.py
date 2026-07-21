@@ -15,8 +15,8 @@ class TestCreateAccount:
     def test_user_can_create_account(self, api_manager: ApiManager, page: Page, user_request: CreateUserRequest):
         UserDashboard(page).open() \
         .check_page_is_visible() \
-        .check_alert_message_and_accept(BankAlert.NEW_ACCOUNT_CREATED) \
-        .create_new_account()
+        .create_new_account() \
+        .check_alert_message_and_accept(BankAlert.NEW_ACCOUNT_CREATED)
 
         accounts = api_manager.user_steps.get_all_accounts(user_request)
         assert len(accounts) == 1

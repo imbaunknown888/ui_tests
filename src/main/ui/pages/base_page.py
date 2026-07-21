@@ -1,8 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from time import monotonic, sleep
 from typing import Callable, List, Type, TypeVar
-from playwright.sync_api import Page, Dialog, Locator, expect
+from playwright.sync_api import Page, Dialog, Locator
 
 from src.main.api.configs.config import Config
 from src.main.api.specs.request_specs import RequestSpecs
@@ -37,49 +36,10 @@ class BasePage(ABC):
     def get_page(self, page_cls: Type[T]) -> T:
         return page_cls(self.page)
 
-    def wait_until_visible(self, locator: Locator) -> Locator:
-        expect(locator).to_be_visible()
-        return locator
-
-    def wait_until_enabled(self, locator: Locator) -> Locator:
-        expect(locator).to_be_enabled()
-        return locator
-
-    def fill_text(self, locator: Locator, value: str) -> None:
-        self.wait_until_visible(locator)
-        self.wait_until_enabled(locator)
-        locator.fill(value)
-        expect(locator).to_have_value(value)
-
-    def click_element(self, locator: Locator) -> None:
-        self.wait_until_visible(locator)
-        self.wait_until_enabled(locator)
-        locator.click()
-
-    def retry_until(
-        self,
-        condition: Callable[[], bool],
-        message: str,
-        timeout: float = 5.0,
-        interval: float = 0.2,
-    ) -> None:
-        deadline = monotonic() + timeout
-        while monotonic() < deadline:
-            if condition():
-                return
-            sleep(interval)
-        assert condition(), message
-
     def check_alert_message_and_accept(self: T, expected_text: str) -> T:
-        messages: list[str] = []
-
         def _handler(d: Dialog) -> None:
-            messages.append(d.message)
-            try:
-                d.accept()
-            finally:
-                assert expected_text in messages[-1], f"Alert text mismatch: {messages[-1]}"
-
+            assert expected_text in d.message, f"Alert text mismatch: {d.message}"
+            d.accept()
         self.page.once("dialog", _handler)
         return self
     
@@ -93,5 +53,5 @@ class BasePage(ABC):
         count = elements.count()
         if count == 0:
             return []
-        expect(elements.first).to_be_visible()
+        elements.first.wait_for(state="attached", timeout=10_000)
         return [constructor(elements.nth(i)) for i in range(elements.count())]

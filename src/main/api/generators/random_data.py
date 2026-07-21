@@ -1,5 +1,5 @@
 import random
-import string
+import uuid
 from faker import Faker
 
 faker = Faker()
@@ -7,8 +7,15 @@ faker = Faker()
 
 class RandomData:
     @staticmethod
-    def get_username(length: int = random.randint(3, 15)) -> str:
+    def get_username(length: int | None = None) -> str:
+        if length is None:
+            length = random.randint(3, 15)
         return ''.join(faker.random_letters(length))
+
+    @staticmethod
+    def get_unique_username(prefix: str = "user") -> str:
+        suffix = uuid.uuid4().hex[:15 - len(prefix)]
+        return f"{prefix}{suffix}"
     
     @staticmethod
     def get_password() -> str:
@@ -19,15 +26,3 @@ class RandomData:
         password = upper + lower + digits + special
         random.shuffle(password)
         return ''.join(password)
-
-    @staticmethod
-    def get_amount(min_value: float = 1.0, max_value: float = 1000.0) -> float:
-        return round(random.uniform(min_value, max_value), 2)
-
-    @staticmethod
-    def get_name() -> str:
-        return f"{faker.first_name()} {faker.last_name()}"
-
-    @staticmethod
-    def get_profile_name() -> str:
-        return ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()

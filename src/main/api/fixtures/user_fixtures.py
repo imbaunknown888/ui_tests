@@ -3,7 +3,31 @@ import pytest
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.classes.session_storage import SessionStorage
 from src.main.api.models.create_user_request import CreateUserRequest
-from src.main.api.generators.random_model_generator import RandomModelGenerator
+from src.main.api.generators.random_data import RandomData
+from src.main.api.models.role import Role
+
+
+@pytest.fixture(scope="function")
+def create_user_request() -> CreateUserRequest:
+    return CreateUserRequest(
+        username=RandomData.get_unique_username(),
+        password=RandomData.get_password(),
+        role=Role.USER,
+    )
+
+
+@pytest.fixture(scope="function")
+def new_user_request(create_user_request: CreateUserRequest) -> CreateUserRequest:
+    return create_user_request
+
+
+@pytest.fixture(scope="function")
+def invalid_user_request() -> CreateUserRequest:
+    return CreateUserRequest(
+        username=RandomData.get_username(1),
+        password=RandomData.get_password(),
+        role=Role.USER,
+    )
 
 
 @pytest.fixture(scope='function')
@@ -18,7 +42,11 @@ def user_request(user_factory):
 @pytest.fixture(scope="function")
 def user_factory(api_manager: ApiManager):
     def create_user() -> CreateUserRequest:
-        user_data = RandomModelGenerator.generate(CreateUserRequest)
+        user_data = CreateUserRequest(
+            username=RandomData.get_unique_username(),
+            password=RandomData.get_password(),
+            role=Role.USER,
+        )
         api_manager.admin_steps.create_user(user_data)
         SessionStorage.add_users([user_data])
         return user_data
