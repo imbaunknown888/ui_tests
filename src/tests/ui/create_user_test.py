@@ -13,6 +13,7 @@ from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
+@pytest.mark.usefixtures("admin_session_autologin")
 class TestCreateUser:
     @pytest.mark.admin_session
     @pytest.mark.parametrize('new_user_request', [RandomModelGenerator.generate(CreateUserRequest)])

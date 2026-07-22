@@ -8,6 +8,7 @@ from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
+@pytest.mark.usefixtures("user_session_extension")
 class TestCreateAccount:
     @pytest.mark.user_session(10)
     def test_user_can_create_account(self, api_manager: ApiManager, page: Page, user_request: CreateUserRequest):
