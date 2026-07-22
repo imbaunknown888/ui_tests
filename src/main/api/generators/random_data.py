@@ -1,4 +1,5 @@
 import random
+import string
 from faker import Faker
 
 faker = Faker()
@@ -18,3 +19,15 @@ class RandomData:
         password = upper + lower + digits + special
         random.shuffle(password)
         return ''.join(password)
+
+    @staticmethod
+    def get_amount(min_value: float = 1.0, max_value: float = 1000.0) -> float:
+        return round(random.uniform(min_value, max_value), 2)
+
+    @staticmethod
+    def get_name() -> str:
+        return f"{faker.first_name()} {faker.last_name()}"
+
+    @staticmethod
+    def get_profile_name() -> str:
+        return ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()
