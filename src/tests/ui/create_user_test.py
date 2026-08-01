@@ -13,7 +13,7 @@ from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
-@pytest.mark.usefixtures("admin_session_autologin", "browser_match_guard")
+@pytest.mark.usefixtures("admin_session_autologin")
 class TestCreateUser:
     @pytest.fixture()
     def new_user_request(self) -> CreateUserRequest:

@@ -8,7 +8,7 @@ from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
-@pytest.mark.usefixtures("user_session_extension", "browser_match_guard")
+@pytest.mark.usefixtures("user_session_extension")
 class TestCreateAccount:
     @pytest.mark.user_session(10)
     @pytest.mark.check_accounts_change(delta=1)
@@ -18,6 +18,5 @@ class TestCreateAccount:
         .check_alert_message_and_accept(BankAlert.NEW_ACCOUNT_CREATED) \
         .create_new_account()
 
-        accounts = api_manager.user_steps.get_all_accounts(user_request)
-        assert len(accounts) == 1
-        assert accounts[0].balance == 0
+        assert len(user_accounts) == 1
+        assert user_accounts[0] and user_accounts[0].balance == 0
