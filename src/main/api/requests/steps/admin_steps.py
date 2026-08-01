@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import List
 
 from src.main.api.specs.request_specs import RequestSpecs
@@ -23,7 +24,7 @@ class AdminSteps(BaseSteps):
 
         return create_user_response
     
-    def create_invalid_user(self, user_request: CreateUserRequest, error_key: str, error_value: str):
+    def create_invalid_user(self, user_request: CreateUserRequest, error_key: str, error_value: str | Iterable[str]):
         CrudRequester(
             RequestSpecs.admin_auth_spec(),
             Endpoint.ADMIN_CREATE_USER,
@@ -44,4 +45,13 @@ class AdminSteps(BaseSteps):
             ResponseSpecs.request_returns_ok()
         ).get()
         
+        return response
+
+    def get_all_users_as(self, admin_user_request: CreateUserRequest):
+        response = ValidatedCrudRequester(
+               RequestSpecs.auth_as_user(admin_user_request.username, admin_user_request.password),
+               Endpoint.ADMIN_GET_ALL_USERS,
+               ResponseSpecs.request_returns_ok()
+        ).get()
+
         return response

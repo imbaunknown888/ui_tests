@@ -22,7 +22,8 @@ class Config:
 
     @staticmethod
     def get(key: str, default_value: Any = None) -> Any:
-        env_value = os.getenv(key)
-        if env_value is not None:
-            return env_value
+        # Allow overriding config.properties via environment variables (useful for CI / Docker / different backends).
+        env_val = os.getenv(key) or os.getenv(key.upper())
+        if env_val is not None:
+            return env_val
         return Config()._properties.get(key, default_value)

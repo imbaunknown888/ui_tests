@@ -38,7 +38,21 @@ class CrudRequester(HttpRequest, CrudEndpointInterface):
         path_suffix = f"/{id}" if id is not None else ""
         return self._send("GET", path_suffix=path_suffix)
 
-    def update(self, model: BaseModel, id: int): ...
+    def update(self, model: BaseModel, id: Optional[int] = None) -> requests.Response:
+        body = model.model_dump() if model is not None else ''
+
+        response = requests.put(
+            url=f'{self.base_url}{self.endpoint.value.url}{("/" + str(id)) if id is not None else ""}',
+            headers=self.request_spec,
+            json=body
+        )
+        self.response_spec(response)
+        return response
 
     def delete(self, id: int) -> requests.Response:
-        return self._send("DELETE", path_suffix=f"/{id}")
+        response = requests.delete(
+            url=f'{self.base_url}{self.endpoint.value.url}/{id}',
+            headers=self.request_spec
+        )
+        self.response_spec(response)
+        return response

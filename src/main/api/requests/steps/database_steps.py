@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from typing import Optional
 
 from src.main.api.database.db_client import Condition, DBRequest, RequestType
-from src.main.api.models.dao.account_dao import AccountDao
-from src.main.api.models.dao.user_dao import UserDao
+from src.main.api.database.dao.user_dao import UserDao
+from src.main.api.database.dao.account_dao import AccountDao
 
 
 class DataBaseSteps:

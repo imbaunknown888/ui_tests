@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from dataclasses import dataclass
+from dataclasses import fields as dataclass_fields
 from enum import Enum
 from typing import Any, Dict, Generator, Optional, Tuple, Type, TypeVar
 
@@ -8,16 +11,22 @@ from psycopg.rows import dict_row
 
 from src.main.api.configs.config import Config
 
-
 T = TypeVar("T")
 
 
+class RequestType(str, Enum):
+    SELECT = "SELECT"
+
+
 def _dsn() -> str:
-    host = Config.get("DB_HOST", "localhost")
-    port = Config.get("DB_PORT", "5433")
-    dbname = Config.get("DB_NAME", "nbank")
-    user = Config.get("DB_USERNAME", "postgres")
-    password = Config.get("DB_PASSWORD", "postgres")
+    """
+    Build Postgres DSN from resources/config.properties (with ENV override via Config.get()).
+    """
+    host = str(Config.get("DB_HOST", "localhost"))
+    port = int(Config.get("DB_PORT", 5433))
+    dbname = str(Config.get("DB_NAME", "nbank"))
+    user = str(Config.get("DB_USERNAME", "postgres"))
+    password = str(Config.get("DB_PASSWORD", "postgres"))
     return f"host={host} port={port} dbname={dbname} user={user} password={password}"
 
 
@@ -38,12 +47,26 @@ def fetch_one(sql: str, params: Optional[tuple[Any, ...]] = None) -> Optional[Di
             return dict(row) if row is not None else None
 
 
-class RequestType(Enum):
-    SELECT = "SELECT"
+def _filter_row_for_dao(dao_cls: Type[T], row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    DB tables can have more columns than our DAO dataclasses define.
+    Filter the returned row dict to only the DAO fields.
+    """
+    try:
+        allowed = {f.name for f in dataclass_fields(dao_cls)}  # type: ignore[arg-type]
+    except Exception:
+        # If it's not a dataclass (or introspection failed), keep the row as-is.
+        return row
+    return {k: v for k, v in row.items() if k in allowed}
 
 
 @dataclass(frozen=True)
 class Condition:
+    """
+    Simple WHERE condition builder for SQL queries.
+    Supports equality and AND-chaining (enough for our test checks).
+    """
+
     sql: str
     params: Tuple[Any, ...]
 
@@ -53,10 +76,11 @@ class Condition:
 
     @staticmethod
     def and_(*conditions: "Condition") -> "Condition":
-        sql = " AND ".join(f"({condition.sql})" for condition in conditions)
-        params: tuple[Any, ...] = tuple(
-            param for condition in conditions for param in condition.params
-        )
+        conds = [c for c in conditions if c is not None]
+        if not conds:
+            raise ValueError("At least one condition is required")
+        sql = " AND ".join(f"({c.sql})" for c in conds) # (a = %s) AND (b = %s)
+        params: Tuple[Any, ...] = tuple(p for c in conds for p in c.params) # ("alex") (1, ) -> ("alex", 1)
         return Condition(sql=sql, params=params)
 
 
@@ -85,21 +109,6 @@ class DBRequestBuilder:
         return self
 
     def extract_as(self, dao_cls: Type[T]) -> T:
-        row = self._fetch_row()
-        if row is None:
-            sql, params = self._build_sql()
-            raise AssertionError(f"DB row not found. SQL={sql}, params={params}")
-        return dao_cls(**row)
-
-    def extract_optional_as(self, dao_cls: Type[T]) -> Optional[T]:
-        row = self._fetch_row()
-        return dao_cls(**row) if row is not None else None
-
-    def _fetch_row(self) -> Optional[Dict[str, Any]]:
-        sql, params = self._build_sql()
-        return fetch_one(sql, params)
-
-    def _build_sql(self) -> tuple[str, tuple[Any, ...]]:
         if self._request_type != RequestType.SELECT:
             raise NotImplementedError(f"Request type not supported: {self._request_type}")
         if not self._table:
@@ -111,4 +120,28 @@ class DBRequestBuilder:
             sql += f" WHERE {self._where.sql}"
             params = self._where.params
         sql += " LIMIT 1"
-        return sql, params
+
+        row = fetch_one(sql, params)
+        if row is None:
+            raise AssertionError(f"DB row not found. SQL={sql}, params={params}")
+
+        return dao_cls(**_filter_row_for_dao(dao_cls, row))  # type: ignore[arg-type]
+
+    def extract_optional_as(self, dao_cls: Type[T]) -> Optional[T]:
+        if self._request_type != RequestType.SELECT:
+            raise NotImplementedError(f"Request type not supported: {self._request_type}")
+        if not self._table:
+            raise ValueError("Table is required")
+
+        sql = f"SELECT * FROM {self._table}"
+        params: tuple[Any, ...] = ()
+        if self._where:
+            sql += f" WHERE {self._where.sql}"
+            params = self._where.params
+        sql += " LIMIT 1"
+
+        row = fetch_one(sql, params)
+        if row is None:
+            return None
+        return dao_cls(**_filter_row_for_dao(dao_cls, row))  # type: ignore[arg-type]
+
