@@ -6,7 +6,7 @@ from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.generators.random_data import RandomData
 from src.main.api.generators.random_model_generator import RandomModelGenerator
-from src.main.api.models.comparison.model_assertions import ModelAssertions
+from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions, ModelAssertions
 from src.main.api.models.role import Role
 from src.main.ui.pages.admin_panel import AdminPanel
 from src.main.ui.pages.bank_alert import BankAlert
@@ -32,14 +32,15 @@ class TestCreateUser:
         )
         ModelAssertions(created_user, new_user_request).match()
 
+        user_dao = api_manager.database_steps.get_user_by_username(created_user.username)
+        DaoAndModelAssertions.assert_that(created_user, user_dao).match()
+
     @pytest.mark.admin_session
     @pytest.mark.parametrize(
         'new_user_request', 
         [CreateUserRequest(username=RandomData.get_username(1), password=RandomData.get_password(), role=Role.USER)]
     )
     def test_admin_cannot_create_user_with_invalid_data(self, page: Page, api_manager: ApiManager, new_user_request: CreateUserRequest):
-        api_manager.admin_steps.created_objects.append(new_user_request)
-
         admin_page = AdminPanel(page).open()
         expect(admin_page.admin_panel_text).to_be_visible()
 
@@ -47,3 +48,6 @@ class TestCreateUser:
         admin_page.check_alert_message_and_accept(BankAlert.USERNAME_MUST_BE_BETWEEN_3_AND_15_CHARACTERS)
         assert not any(u.username == new_user_request.username for u in admin_page.get_all_users())
         assert not any(u.username == new_user_request.username for u in api_manager.admin_steps.get_all_users())
+
+        user_dao = api_manager.database_steps.find_user_by_username(new_user_request.username)
+        assert user_dao is None, f"User '{new_user_request.username}' should not exist in DB after invalid create"

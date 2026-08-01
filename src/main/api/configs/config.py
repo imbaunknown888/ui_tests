@@ -1,3 +1,4 @@
+import os
 from typing import Any
 from pathlib import Path
 
@@ -21,4 +22,7 @@ class Config:
 
     @staticmethod
     def get(key: str, default_value: Any = None) -> Any:
+        env_value = os.getenv(key)
+        if env_value is not None:
+            return env_value
         return Config()._properties.get(key, default_value)

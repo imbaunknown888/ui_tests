@@ -3,6 +3,7 @@ from playwright.sync_api import Page, expect
 
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.models.create_user_request import CreateUserRequest
+from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions
 from src.main.ui.pages.user_dashboard import UserDashboard
 from src.main.ui.pages.bank_alert import BankAlert
 
@@ -21,3 +22,8 @@ class TestCreateAccount:
 
         assert len(user_accounts) == 1
         assert user_accounts[0] and user_accounts[0].balance == 0
+
+        account_dao = api_manager.database_steps.get_account_by_account_number(
+            user_accounts[0].accountNumber
+        )
+        DaoAndModelAssertions.assert_that(user_accounts[0], account_dao).match()
