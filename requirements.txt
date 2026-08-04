@@ -6,3 +6,4 @@ rstr
 pytest-playwright
 Faker
 pytest-xdist
+psycopg[binary]

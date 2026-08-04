@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Dict, Any, List
 from dataclasses import dataclass
 from decimal import Decimal
@@ -55,3 +56,9 @@ class ModelComparator:
             current_class = current_class.__base__
 
         raise AttributeError(f'Field {field_name} not found in class {obj.__class__.__name__}')
+
+    @staticmethod
+    def _values_equal(left: Any, right: Any) -> bool:
+        if isinstance(left, (int, float, Decimal)) and isinstance(right, (int, float, Decimal)):
+            return Decimal(str(left)) == Decimal(str(right))
+        return str(left) == str(right)

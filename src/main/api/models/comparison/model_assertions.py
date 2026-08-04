@@ -41,3 +41,28 @@ class ModelAssertions:
             raise AssertionError(f'No comparion rule found for class {self.request.__class__.__name__}')
         return self
 
+
+class DaoAndModelAssertions:
+    def __init__(self, left: Any, right: Any):
+        self.left = left
+        self.right = right
+
+    @staticmethod
+    def assert_that(left: Any, right: Any) -> 'DaoAndModelAssertions':
+        return DaoAndModelAssertions(left, right)
+
+    def match(self) -> 'DaoAndModelAssertions':
+        config_loader = ModelComparisonConfigLoader('dao-comparison.properties')
+        rule = config_loader.get_rule_for(self.left)
+
+        if rule is None:
+            raise AssertionError(f'No DAO comparison rule found for class {self.left.__class__.__name__}')
+
+        result = ModelComparator.compare_fields(
+            self.left, self.right, rule.field_mapping
+        )
+
+        if not result.is_success():
+            raise AssertionError(f'DAO comparison failed with mismatches fields: \n{result.mismatches}')
+
+        return self
