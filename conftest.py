@@ -9,11 +9,9 @@ from src.main.api.fixtures.api_fixtures import *
 from src.main.api.fixtures.assertion_fixtures import *
 from src.main.api.fixtures.fraud_fixtures import *
 from src.main.api.fixtures.object_fixtures import *
-from src.main.api.fixtures.prepare_data_fixtures import *
 from src.main.api.fixtures.setup_hook import *
 from src.main.api.fixtures.user_fixtures import *
 from src.main.api.utils.normalize_browsers import norm_browser_name
-
 
 
 def _apply_global_seed(seed: int) -> None:
@@ -37,13 +35,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--seed",
         action="store",
         default=os.getenv("PYTEST_SEED"),
-        help="Seed for random generators. If not set, a new seed is generated per run (and shared across xdist workers).",
-    )
-    parser.addoption(
-        "--api-version",
-        action="store",
-        default=os.getenv("API_VERSION"),
-        help="Backend version under test. Used with @pytest.mark.api_version(...). Example: --api-version with_database",
+        help="Seed for random generators. If not set, a new seed is generated per run and shared across xdist workers.",
     )
 
 
@@ -58,10 +50,6 @@ def pytest_configure(config: pytest.Config) -> None:
 
     config._nbank_seed = int(seed)
     _apply_global_seed(int(seed))
-
-    api_version = config.getoption("--api-version")
-    if api_version:
-        os.environ["API_VERSION"] = str(api_version)
 
 
 def pytest_configure_node(node) -> None:
@@ -94,22 +82,12 @@ def pytest_collection_finish(session: pytest.Session) -> None:
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     preferred = "chromium"
-
     filtered: list[pytest.Item] = []
 
     for item in items:
         is_ui = bool(item.get_closest_marker("ui"))
         browsers_mark = item.get_closest_marker("browsers")
-        api_ver_mark = item.get_closest_marker("api_version")
         fixts = getattr(item, "fixturenames", ()) or ()
-
-        # Backend version filtering: if test is tagged with @api_version("..."),
-        # it runs only when --api-version matches. Otherwise, skip it.
-        if api_ver_mark:
-            expected = str(api_ver_mark.args[0]) if api_ver_mark.args else ""
-            actual = str(config.getoption("--api-version") or "")
-            if not actual or actual != expected:
-                continue
 
         if browsers_mark:
             allowed = {norm_browser_name(str(x)) for x in (browsers_mark.args or ())}
@@ -122,13 +100,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if (not is_ui) and ("browser_name" in fixts):
             callspec = getattr(item, "callspec", None)
             if callspec is not None and "browser_name" in callspec.params:
-                bn = norm_browser_name(callspec.params.get("browser_name"))
-                if bn != preferred:
+                browser_name = norm_browser_name(callspec.params.get("browser_name"))
+                if browser_name != preferred:
                     continue
 
         filtered.append(item)
 
     items[:] = filtered
+
 
 @pytest.fixture(autouse=True, scope="function")
 def clear_storage():

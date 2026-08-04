@@ -6,14 +6,14 @@ from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.generators.random_data import RandomData
 from src.main.api.generators.random_model_generator import RandomModelGenerator
-from src.main.api.models.comparison.model_assertions import ModelAssertions
+from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions, ModelAssertions
 from src.main.api.models.role import Role
 from src.main.ui.pages.admin_panel import AdminPanel
 from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
-@pytest.mark.usefixtures("admin_session_autologin", "browser_match_guard")
+@pytest.mark.usefixtures("admin_session_autologin")
 class TestCreateUser:
     @pytest.fixture()
     def new_user_request(self) -> CreateUserRequest:
@@ -35,6 +35,9 @@ class TestCreateUser:
             if u.username == new_user_request.username
         )
         ModelAssertions(created_user, new_user_request).match()
+
+        user_dao = api_manager.database_steps.get_user_by_username(created_user.username)
+        DaoAndModelAssertions.assert_that(created_user, user_dao).match()
 
     @pytest.mark.admin_session
     @pytest.mark.parametrize(

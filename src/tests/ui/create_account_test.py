@@ -3,12 +3,13 @@ from playwright.sync_api import Page
 
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.models.create_user_request import CreateUserRequest
+from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions
 from src.main.ui.pages.user_dashboard import UserDashboard
 from src.main.ui.pages.bank_alert import BankAlert
 
 
 @pytest.mark.ui
-@pytest.mark.usefixtures("user_session_extension", "browser_match_guard")
+@pytest.mark.usefixtures("user_session_extension")
 class TestCreateAccount:
     @pytest.mark.user_session(10)
     @pytest.mark.check_accounts_change(delta=1)
@@ -18,6 +19,10 @@ class TestCreateAccount:
         .check_alert_message_and_accept(BankAlert.NEW_ACCOUNT_CREATED) \
         .create_new_account()
 
-        accounts = api_manager.user_steps.get_all_accounts(user_request)
-        assert len(accounts) == 1
-        assert accounts[0].balance == 0
+        assert len(user_accounts) == 1
+        assert user_accounts[0] and user_accounts[0].balance == 0
+
+        account_dao = api_manager.database_steps.get_account_by_account_number(
+            user_accounts[0].accountNumber
+        )
+        DaoAndModelAssertions.assert_that(user_accounts[0], account_dao).match()
