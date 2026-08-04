@@ -30,4 +30,6 @@ class RandomData:
 
     @staticmethod
     def get_profile_name() -> str:
-        return ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()
+        first_name = ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()
+        last_name = ''.join(random.choices(string.ascii_letters, k=random.randint(3, 15))).title()
+        return f"{first_name} {last_name}"
