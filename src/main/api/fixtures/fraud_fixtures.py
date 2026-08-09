@@ -129,3 +129,5 @@ def fraud_check_mock_server(request: pytest.FixtureRequest):
                 srv.server_close()
             except Exception:
                 pass
+        for thread in threads:
+            thread.join(timeout=1)

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import allure
 import pytest
@@ -16,52 +17,84 @@ TRANSFER_AMOUNT = 123.45
 INITIAL_DEPOSIT = 5000.0
 
 
+class FraudMockStatus(str, Enum):
+    SUCCESS = "SUCCESS"
+
+
+class FraudDecision(str, Enum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    MANUAL_REVIEW = "MANUAL_REVIEW"
+
+
+class TransferStatus(str, Enum):
+    APPROVED = "APPROVED"
+    MANUAL_REVIEW_REQUIRED = "MANUAL_REVIEW_REQUIRED"
+
+
+class TransferMessage(str, Enum):
+    APPROVED = "Transfer approved and processed immediately"
+    MANUAL_REVIEW_REQUIRED = "Transfer requires manual review"
+
+
+class FraudReason(str, Enum):
+    LOW_RISK_TRANSACTION = "Low risk transaction"
+    ADDITIONAL_VERIFICATION_REQUIRED = "Additional verification required"
+    HIGH_RISK_TRANSACTION = "High risk transaction"
+    MANUAL_REVIEW_REQUIRED = "Manual review required"
+
+
 @dataclass(frozen=True)
 class FraudScenario:
-    expected_status: str
-    expected_message: str
+    decision: FraudDecision
+    expected_status: TransferStatus
+    expected_message: TransferMessage
     risk_score: float
-    reason: str
+    reason: FraudReason
     requires_manual_review: bool
     requires_verification: bool
     should_transfer_money: bool
 
 
 APPROVED = FraudScenario(
-    expected_status="APPROVED",
-    expected_message="Transfer approved and processed immediately",
+    decision=FraudDecision.APPROVED,
+    expected_status=TransferStatus.APPROVED,
+    expected_message=TransferMessage.APPROVED,
     risk_score=0.2,
-    reason="Low risk transaction",
+    reason=FraudReason.LOW_RISK_TRANSACTION,
     requires_manual_review=False,
     requires_verification=False,
     should_transfer_money=True,
 )
 
 APPROVED_WITH_VERIFICATION = FraudScenario(
-    expected_status="APPROVED",
-    expected_message="Transfer approved and processed immediately",
+    decision=FraudDecision.APPROVED,
+    expected_status=TransferStatus.APPROVED,
+    expected_message=TransferMessage.APPROVED,
     risk_score=0.45,
-    reason="Additional verification required",
+    reason=FraudReason.ADDITIONAL_VERIFICATION_REQUIRED,
     requires_manual_review=False,
     requires_verification=True,
     should_transfer_money=True,
 )
 
 REJECTED = FraudScenario(
-    expected_status="MANUAL_REVIEW_REQUIRED",
-    expected_message="Transfer requires manual review",
+    decision=FraudDecision.REJECTED,
+    expected_status=TransferStatus.MANUAL_REVIEW_REQUIRED,
+    expected_message=TransferMessage.MANUAL_REVIEW_REQUIRED,
     risk_score=0.95,
-    reason="High risk transaction",
+    reason=FraudReason.HIGH_RISK_TRANSACTION,
     requires_manual_review=False,
     requires_verification=False,
     should_transfer_money=False,
 )
 
 MANUAL_REVIEW = FraudScenario(
-    expected_status="MANUAL_REVIEW_REQUIRED",
-    expected_message="Transfer requires manual review",
+    decision=FraudDecision.MANUAL_REVIEW,
+    expected_status=TransferStatus.MANUAL_REVIEW_REQUIRED,
+    expected_message=TransferMessage.MANUAL_REVIEW_REQUIRED,
     risk_score=0.7,
-    reason="Manual review required",
+    reason=FraudReason.MANUAL_REVIEW_REQUIRED,
     requires_manual_review=True,
     requires_verification=False,
     should_transfer_money=False,
@@ -80,6 +113,23 @@ def _account_by_id(
     )
 
 
+def _fraud_scenario_param(scenario: FraudScenario, scenario_id: str):
+    return pytest.param(
+        scenario,
+        marks=pytest.mark.fraud_check_mock(
+            port=8080,
+            endpoint=r"/.*",
+            status=FraudMockStatus.SUCCESS.value,
+            decision=scenario.decision.value,
+            riskScore=scenario.risk_score,
+            reason=scenario.reason.value,
+            requiresManualReview=scenario.requires_manual_review,
+            additionalVerificationRequired=scenario.requires_verification,
+        ),
+        id=scenario_id,
+    )
+
+
 @pytest.mark.api
 @pytest.mark.api_version("with_fraud_check_with_transfer_fix")
 @pytest.mark.prepare_users(number=2)
@@ -88,62 +138,13 @@ class TestTransferWithFraudCheck:
     @pytest.mark.parametrize(
         "scenario",
         [
-            pytest.param(
-                APPROVED,
-                marks=pytest.mark.fraud_check_mock(
-                    port=8080,
-                    endpoint=r"/.*",
-                    status="SUCCESS",
-                    decision="APPROVED",
-                    riskScore=APPROVED.risk_score,
-                    reason=APPROVED.reason,
-                    requiresManualReview=APPROVED.requires_manual_review,
-                    additionalVerificationRequired=APPROVED.requires_verification,
-                ),
-                id="approved",
-            ),
-            pytest.param(
+            _fraud_scenario_param(APPROVED, "approved"),
+            _fraud_scenario_param(
                 APPROVED_WITH_VERIFICATION,
-                marks=pytest.mark.fraud_check_mock(
-                    port=8080,
-                    endpoint=r"/.*",
-                    status="SUCCESS",
-                    decision="APPROVED",
-                    riskScore=APPROVED_WITH_VERIFICATION.risk_score,
-                    reason=APPROVED_WITH_VERIFICATION.reason,
-                    requiresManualReview=APPROVED_WITH_VERIFICATION.requires_manual_review,
-                    additionalVerificationRequired=APPROVED_WITH_VERIFICATION.requires_verification,
-                ),
-                id="approved-with-verification",
+                "approved-with-verification",
             ),
-            pytest.param(
-                REJECTED,
-                marks=pytest.mark.fraud_check_mock(
-                    port=8080,
-                    endpoint=r"/.*",
-                    status="SUCCESS",
-                    decision="REJECTED",
-                    riskScore=REJECTED.risk_score,
-                    reason=REJECTED.reason,
-                    requiresManualReview=REJECTED.requires_manual_review,
-                    additionalVerificationRequired=REJECTED.requires_verification,
-                ),
-                id="rejected",
-            ),
-            pytest.param(
-                MANUAL_REVIEW,
-                marks=pytest.mark.fraud_check_mock(
-                    port=8080,
-                    endpoint=r"/.*",
-                    status="SUCCESS",
-                    decision="MANUAL_REVIEW",
-                    riskScore=MANUAL_REVIEW.risk_score,
-                    reason=MANUAL_REVIEW.reason,
-                    requiresManualReview=MANUAL_REVIEW.requires_manual_review,
-                    additionalVerificationRequired=MANUAL_REVIEW.requires_verification,
-                ),
-                id="manual-review",
-            ),
+            _fraud_scenario_param(REJECTED, "rejected"),
+            _fraud_scenario_param(MANUAL_REVIEW, "manual-review"),
         ],
     )
     def test_transfer_with_fraud_check_uses_mocked_decision(
@@ -171,13 +172,13 @@ class TestTransferWithFraudCheck:
 
         with allure.step("Validate transfer response matches mocked fraud decision"):
             expected = TransferResponse(
-                status=scenario.expected_status,
-                message=scenario.expected_message,
+                status=scenario.expected_status.value,
+                message=scenario.expected_message.value,
                 amount=TRANSFER_AMOUNT,
                 senderAccountId=sender.account.id,
                 receiverAccountId=receiver.account.id,
                 fraudRiskScore=scenario.risk_score,
-                fraudReason=scenario.reason,
+                fraudReason=scenario.reason.value,
                 requiresManualReview=scenario.requires_manual_review,
                 requiresVerification=scenario.requires_verification,
             )
