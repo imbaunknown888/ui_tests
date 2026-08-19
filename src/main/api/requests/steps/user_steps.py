@@ -57,14 +57,9 @@ class UserSteps(BaseSteps):
         return user_profile
 
     def deposit_to_account(self, user_request: CreateUserRequest, account_id: int, amount: float) -> DepositResponse:
-        account = next(
-            account for account in self.get_all_accounts(user_request)
-            if account.id == account_id
-        )
         deposit_request = DepositRequest(
-            id=account.id,
-            accountNumber=account.accountNumber,
-            balance=amount,
+            accountId=account_id,
+            amount=amount,
         )
         deposit_response: DepositResponse = ValidatedCrudRequester(
             RequestSpecs.auth_as_user(user_request.username, user_request.password),
