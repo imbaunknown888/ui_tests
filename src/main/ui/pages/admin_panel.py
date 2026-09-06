@@ -1,8 +1,8 @@
-from typing import List
-from playwright.sync_api import expect, Locator
 
-from src.main.ui.pages.base_page import BasePage
+from playwright.sync_api import Locator, expect
+
 from src.main.ui.elements.user_badge import UserBadge
+from src.main.ui.pages.base_page import BasePage
 
 
 class AdminPanel(BasePage):
@@ -34,9 +34,11 @@ class AdminPanel(BasePage):
             )
 
         if wait_for_users_refresh:
-            with self.page.expect_response(is_get_users_response):
-                with self.page.expect_response(is_create_user_response):
-                    self.click_element(self.add_user_button)
+            with (
+                self.page.expect_response(is_get_users_response),
+                self.page.expect_response(is_create_user_response),
+            ):
+                self.click_element(self.add_user_button)
         else:
             with self.page.expect_response(is_create_user_response):
                 self.click_element(self.add_user_button)
@@ -51,7 +53,7 @@ class AdminPanel(BasePage):
     def get_user_locator(self, username: str) -> Locator:
         return self.get_all_users_container_locator().get_by_text(username, exact=True)
     
-    def get_all_users(self) -> List[UserBadge]:
+    def get_all_users(self) -> list[UserBadge]:
         return self._generate_page_elements(self.get_all_users_locator(), UserBadge)
     
     def wait_for_username(self, username: str):

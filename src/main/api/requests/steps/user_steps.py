@@ -1,21 +1,22 @@
-from typing import List
 
-from src.main.api.specs.request_specs import RequestSpecs
-from src.main.api.specs.response_specs import ResponseSpecs
-from src.main.api.requests.steps.base_steps import BaseSteps
-from src.main.api.requests.skeleton.endpoint import Endpoint
-from src.main.api.models.login_user_request import LoginUserRequest
-from src.main.api.models.login_user_response import LoginUserResponse
-from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.comparison.model_assertions import models_match
-from src.main.api.models.user_profile_response import UserProfileResponse
 from src.main.api.models.create_account_response import CreateAccountResponse
+from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.deposit_request import DepositRequest
 from src.main.api.models.deposit_response import DepositResponse
+from src.main.api.models.login_user_request import LoginUserRequest
+from src.main.api.models.login_user_response import LoginUserResponse
 from src.main.api.models.transfer_request import TransferRequest
 from src.main.api.models.transfer_response import TransferResponse
 from src.main.api.models.update_profile_request import UpdateProfileRequest
-from src.main.api.requests.skeleton.requesters.validated_crud_requester import ValidatedCrudRequester
+from src.main.api.models.user_profile_response import UserProfileResponse
+from src.main.api.requests.skeleton.endpoint import Endpoint
+from src.main.api.requests.skeleton.requesters.validated_crud_requester import (
+    ValidatedCrudRequester,
+)
+from src.main.api.requests.steps.base_steps import BaseSteps
+from src.main.api.specs.request_specs import RequestSpecs
+from src.main.api.specs.response_specs import ResponseSpecs
 
 
 class UserSteps(BaseSteps):
@@ -38,8 +39,8 @@ class UserSteps(BaseSteps):
 
         return create_account_response
     
-    def get_all_accounts(self, user_request: CreateUserRequest) -> List[CreateAccountResponse]:
-        user_accounts: List[CreateAccountResponse] = ValidatedCrudRequester(
+    def get_all_accounts(self, user_request: CreateUserRequest) -> list[CreateAccountResponse]:
+        user_accounts: list[CreateAccountResponse] = ValidatedCrudRequester(
             RequestSpecs.auth_as_user(user_request.username, user_request.password),
             Endpoint.GET_CUSTOMER_ACCOUNTS,
             ResponseSpecs.request_returns_ok()

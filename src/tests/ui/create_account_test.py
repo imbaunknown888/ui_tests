@@ -2,10 +2,10 @@ import pytest
 from playwright.sync_api import Page
 
 from src.main.api.classes.api_manager import ApiManager
-from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions
-from src.main.ui.pages.user_dashboard import UserDashboard
+from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.ui.pages.bank_alert import BankAlert
+from src.main.ui.pages.user_dashboard import UserDashboard
 
 
 @pytest.mark.ui
@@ -19,6 +19,7 @@ class TestCreateAccount:
         .check_alert_message_and_accept(BankAlert.NEW_ACCOUNT_CREATED) \
         .create_new_account()
 
+        user_accounts = api_manager.user_steps.get_all_accounts(user_request)
         assert len(user_accounts) == 1
         assert user_accounts[0] and user_accounts[0].balance == 0
 

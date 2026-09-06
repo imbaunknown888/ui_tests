@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Any
 
 from src.main.api.models.base_model import BaseModel
 
@@ -13,7 +13,7 @@ class DepositResponse(BaseModel):
     accountNumber: str
     balance: float
 
-    depositAmount: Optional[float] = None
-    transactionId: Optional[int] = None
-    transaction: Optional[Any] = None
+    depositAmount: float | None = None
+    transactionId: int | None = None
+    transaction: Any | None = None
 

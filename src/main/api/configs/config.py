@@ -1,15 +1,15 @@
 import os
-from typing import Any
 from pathlib import Path
+from typing import Any, ClassVar
 
 
 class Config:
-    _instance = None
-    _properties = {}
+    _instance: ClassVar[Any] = None
+    _properties: ClassVar[dict[str, str]] = {}
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(Config, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             config_path = Path('resources/config.properties')
             if not config_path.exists():
                 raise ImportError(f'{config_path}: config.properties not found')

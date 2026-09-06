@@ -2,7 +2,6 @@ from typing import Annotated
 
 from src.main.api.generators.generating_rule import GeneratingRule
 from src.main.api.models.base_model import BaseModel
-from src.main.api.generators.generating_rule import GeneratingRule
 
 
 class CreateUserRequest(BaseModel):

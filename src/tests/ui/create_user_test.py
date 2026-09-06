@@ -1,12 +1,14 @@
-import re
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
-from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.generators.random_data import RandomData
 from src.main.api.generators.random_model_generator import RandomModelGenerator
-from src.main.api.models.comparison.model_assertions import DaoAndModelAssertions, ModelAssertions
+from src.main.api.models.comparison.model_assertions import (
+    DaoAndModelAssertions,
+    ModelAssertions,
+)
+from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.role import Role
 from src.main.ui.pages.admin_panel import AdminPanel
 from src.main.ui.pages.bank_alert import BankAlert
@@ -23,7 +25,7 @@ class TestCreateUser:
     @pytest.mark.entity_will_be_created("new_user_request")
     @pytest.mark.check_all_users_change(delta=1, username_source="new_user_request.username")
     def test_admin_can_create_user(self, page: Page, api_manager: ApiManager, new_user_request: CreateUserRequest):     
-        admin_page = AdminPanel(page).open() \
+        AdminPanel(page).open() \
         .check_page_is_visible() \
         .check_alert_message_and_accept(BankAlert.USER_CREATED_SUCCESSFULLY) \
         .create_user(new_user_request.username, new_user_request.password, wait_for_users_refresh=True) \

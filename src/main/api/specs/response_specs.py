@@ -1,6 +1,6 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from http import HTTPStatus
-from typing import Callable
+
 from requests import Response
 
 

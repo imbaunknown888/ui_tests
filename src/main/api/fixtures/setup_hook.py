@@ -51,7 +51,7 @@ def browser_match_guard(request: pytest.FixtureRequest):
 
     try:
         request.getfixturevalue("browser_name")
-    except Exception:
+    except pytest.FixtureLookupError:
         return
 
     return

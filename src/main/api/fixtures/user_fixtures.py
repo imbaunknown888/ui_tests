@@ -2,15 +2,15 @@ import pytest
 
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.classes.session_storage import SessionStorage
-from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.generators.random_model_generator import RandomModelGenerator
+from src.main.api.models.create_user_request import CreateUserRequest
 
 
 @pytest.fixture(scope='function')
 def user_request(user_factory):
     try:
         return SessionStorage.get_user(0)
-    except Exception:
+    except IndexError:
         user = user_factory()
         return user
 

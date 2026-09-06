@@ -1,7 +1,9 @@
 import re
 
-from src.main.ui.pages.base_page import BasePage
 from playwright.sync_api import expect
+
+from src.main.ui.pages.base_page import BasePage
+
 
 class UserDashboard(BasePage):
     @property
