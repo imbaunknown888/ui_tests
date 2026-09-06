@@ -1,6 +1,6 @@
-from decimal import Decimal
-from typing import Dict, Any, List
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from typing import Any
 
 
 @dataclass
@@ -11,20 +11,20 @@ class Mismatch:
 
 
 class ComparisonResult:
-    def __init__(self, mismatches: List[Mismatch]):
+    def __init__(self, mismatches: list[Mismatch]):
         self._mismatches = mismatches
 
     def is_success(self) -> bool:
         return not self.mismatches
     
     @property
-    def mismatches(self) -> List[Mismatch]:
+    def mismatches(self) -> list[Mismatch]:
         return self._mismatches 
     
 
 class ModelComparator:
     @staticmethod
-    def compare_fields(request: Any, response: Any, field_mapping: Dict[str, str]):
+    def compare_fields(request: Any, response: Any, field_mapping: dict[str, str]):
         mismatches = []
 
         for request_field, response_field in field_mapping.items():
@@ -44,7 +44,7 @@ class ModelComparator:
         if isinstance(left, (int, float, Decimal)) and isinstance(right, (int, float, Decimal)):
             try:
                 return Decimal(str(left)) == Decimal(str(right))
-            except Exception:
+            except InvalidOperation:
                 return str(left) == str(right)
 
         return str(left) == str(right)

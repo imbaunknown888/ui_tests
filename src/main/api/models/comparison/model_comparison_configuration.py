@@ -1,14 +1,13 @@
+import configparser
 import os
 from pathlib import Path
-import configparser
-from typing import Dict, List, Optional, Type
 
 
 class ComparisonRule:
-    def __init__(self, response_class_name: str, field_pairs: List[str]):
+    def __init__(self, response_class_name: str, field_pairs: list[str]):
         self._response_class_name = response_class_name
         self.field_pairs = field_pairs
-        self._field_mapping: Dict[str, str] = {}
+        self._field_mapping: dict[str, str] = {}
 
         for pair in field_pairs:
             parts = pair.split('=')
@@ -22,13 +21,13 @@ class ComparisonRule:
         return self._response_class_name
     
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         return self._field_mapping
         
 
 class ModelComparisonConfigLoader:
     def __init__(self, config_file: str):
-        self.rules: Dict[str, ComparisonRule] = {}
+        self.rules: dict[str, ComparisonRule] = {}
         self._load_config(config_file)
 
     def _load_config(self, config_file: str):
@@ -52,5 +51,5 @@ class ModelComparisonConfigLoader:
 
             self.rules[key.strip()] = ComparisonRule(response_class, field_list)
 
-    def get_rule_for(self, request_class: Type) -> Optional[ComparisonRule]:
+    def get_rule_for(self, request_class: type) -> ComparisonRule | None:
         return self.rules.get(request_class.__class__.__name__)

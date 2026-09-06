@@ -1,4 +1,5 @@
-from typing import Protocol, Dict, Callable
+from collections.abc import Callable
+from typing import Protocol
 
 from src.main.api.requests.skeleton.endpoint import Endpoint
 
@@ -6,7 +7,7 @@ from src.main.api.requests.skeleton.endpoint import Endpoint
 class HttpRequest(Protocol):
     def __init__(
         self,
-        request_spec: Dict[str, str],
+        request_spec: dict[str, str],
         endpoint: Endpoint,
         response_spec: Callable
     ):

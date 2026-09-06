@@ -1,11 +1,13 @@
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
+
 import requests
 
 from src.main.api.configs.config import Config
 from src.main.api.models.base_model import BaseModel
 from src.main.api.requests.skeleton.http_request import HttpRequest
-from src.main.api.requests.skeleton.interfaces.crud_end_interface import CrudEndpointInterface
-
+from src.main.api.requests.skeleton.interfaces.crud_end_interface import (
+    CrudEndpointInterface,
+)
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -30,15 +32,15 @@ class CrudRequester(HttpRequest, CrudEndpointInterface):
         self.response_spec(response)
         return response
     
-    def post(self, model: Optional[T] = None) -> requests.Response:
+    def post(self, model: T | None = None) -> requests.Response:
         body = model.model_dump() if model is not None else None
         return self._send("POST", json=body)
 
-    def get(self, id: Optional[int] = None): 
+    def get(self, id: int | None = None): 
         path_suffix = f"/{id}" if id is not None else ""
         return self._send("GET", path_suffix=path_suffix)
 
-    def update(self, model: BaseModel, id: Optional[int] = None) -> requests.Response:
+    def update(self, model: BaseModel, id: int | None = None) -> requests.Response:
         body = model.model_dump() if model is not None else ''
 
         response = requests.put(

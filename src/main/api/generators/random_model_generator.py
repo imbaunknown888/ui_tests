@@ -1,16 +1,17 @@
-from datetime import datetime, timedelta
-import uuid
-import rstr
 import random
-from typing import Any, Annotated, get_type_hints, get_origin, get_args
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any, get_args, get_origin, get_type_hints
+
+import rstr
 
 from src.main.api.generators.generating_rule import GeneratingRule
 
 
 class RandomModelGenerator:
     @staticmethod
-    def generate(cls: type) -> Any:
-        type_hints = get_type_hints(cls, include_extras=True)
+    def generate(model_cls: type) -> Any:
+        type_hints = get_type_hints(model_cls, include_extras=True)
         init_data = {}
 
         for field_name, annotated_type in type_hints.items():
@@ -29,7 +30,7 @@ class RandomModelGenerator:
 
             init_data[field_name] = value
         
-        return cls(**init_data)
+        return model_cls(**init_data)
 
     @staticmethod
     def _generate_from_regex(regex: str, field_type: type) -> Any:
@@ -51,7 +52,7 @@ class RandomModelGenerator:
         elif field_type is bool:
             return random.choice([True, False])
         elif field_type is datetime:
-            return datetime.now() - timedelta(seconds=random.randint(0, 100000))
+            return datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=random.randint(0, 100000))
         elif field_type is list:
             return [str(uuid.uuid4())[:5] for _ in random.randint(3, 10)]
         elif isinstance(field_type, type):

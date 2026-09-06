@@ -1,10 +1,10 @@
-from typing import Optional, TypeVar
+from typing import TypeVar
+
 from pydantic import TypeAdapter
 
-from src.main.api.requests.skeleton.requesters.crud_requester import CrudRequester
 from src.main.api.models.base_model import BaseModel
 from src.main.api.requests.skeleton.http_request import HttpRequest
-
+from src.main.api.requests.skeleton.requesters.crud_requester import CrudRequester
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -19,15 +19,15 @@ class ValidatedCrudRequester(HttpRequest):
         )
         self._adapter = TypeAdapter(self.endpoint.value.response_model)
 
-    def post(self, model: Optional[T] = None):
+    def post(self, model: T | None = None):
         response = self.crud_requester.post(model)
         return self._adapter.validate_python(response.json())
     
-    def get(self, id: Optional[int] = None): 
+    def get(self, id: int | None = None): 
         response = self.crud_requester.get(id)
         return self._adapter.validate_python(response.json())
 
-    def update(self, model: Optional[T] = None, id: Optional[int] = None):
+    def update(self, model: T | None = None, id: int | None = None):
         response = self.crud_requester.update(model, id)
         return self._adapter.validate_python(response.json())
 

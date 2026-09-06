@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -95,7 +95,7 @@ def check_all_users_change(request: pytest.FixtureRequest, created_objects):
         return
 
     delta = int(mark.kwargs.get("delta", 0))
-    username_source: Optional[str] = mark.kwargs.get("username_source")
+    username_source: str | None = mark.kwargs.get("username_source")
     should_exist = mark.kwargs.get("should_exist")
     if should_exist is None:
         should_exist = delta > 0
@@ -109,7 +109,7 @@ def check_all_users_change(request: pytest.FixtureRequest, created_objects):
     api_manager: ApiManager = request.getfixturevalue("api_manager")
 
     # Resolve username early (before yield), while parametrized args are still accessible.
-    resolved_username: Optional[str] = None
+    resolved_username: str | None = None
     if username_source:
         resolved_username = str(_resolve_source(request, username_source))
 
@@ -165,7 +165,7 @@ def check_accounts_change(request: pytest.FixtureRequest):
     if request.node.get_closest_marker("user_session") is not None:
         try:
             request.getfixturevalue("user_session_extension")
-        except Exception:
+        except pytest.FixtureLookupError:
             # In non-UI contexts this fixture may not exist; ignore.
             pass
 
@@ -202,7 +202,7 @@ def check_account_balance_change(request: pytest.FixtureRequest):
         return
 
     api_manager: ApiManager = request.getfixturevalue("api_manager")
-    snapshots: list[tuple[CreateUserRequest, int, float, Optional[float], float]] = []
+    snapshots: list[tuple[CreateUserRequest, int, float, float | None, float]] = []
 
     for mark in marks:
         user_source = mark.kwargs["user_source"]

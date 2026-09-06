@@ -1,6 +1,6 @@
-from typing import List, Any
+from typing import Any
 
 
 class BaseSteps:
-    def __init__(self, created_objects: List[Any]):
+    def __init__(self, created_objects: list[Any]):
         self.created_objects = created_objects

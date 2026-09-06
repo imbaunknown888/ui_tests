@@ -12,7 +12,6 @@ from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.transfer_request import TransferRequest
 from src.main.api.models.transfer_response import TransferResponse
 
-
 TRANSFER_AMOUNT = 123.45
 INITIAL_DEPOSIT = 5000.0
 

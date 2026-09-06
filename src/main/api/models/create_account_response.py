@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from pydantic import Field
 
@@ -10,4 +10,4 @@ class CreateAccountResponse(BaseModel):
     accountNumber: str
     balance: float
     # Some backend builds omit this field on account creation.
-    transactions: List[Any] = Field(default_factory=list)
+    transactions: list[Any] = Field(default_factory=list)

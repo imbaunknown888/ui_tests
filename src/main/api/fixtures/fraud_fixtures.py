@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import re
 import threading
+from contextlib import suppress
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -21,7 +22,7 @@ class _ReusableHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def _load_fraud_mock_config(request: pytest.FixtureRequest) -> Optional[FraudMockConfig]:
+def _load_fraud_mock_config(request: pytest.FixtureRequest) -> FraudMockConfig | None:
     mark = request.node.get_closest_marker("fraud_check_mock")
     if not mark:
         return None
@@ -78,17 +79,15 @@ def fraud_check_mock_server(request: pytest.FixtureRequest):
             self.end_headers()
             self.wfile.write(response_bytes)
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             self._reply()
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             # Read & ignore request body (backend may send JSON).
-            try:
+            with suppress(OSError, ValueError):
                 length = int(self.headers.get("Content-Length", "0"))
                 if length:
                     _ = self.rfile.read(length)
-            except Exception:
-                pass
             self._reply()
 
     servers: list[_ReusableHTTPServer] = []
@@ -121,13 +120,9 @@ def fraud_check_mock_server(request: pytest.FixtureRequest):
         yield
     finally:
         for srv in servers:
-            try:
+            with suppress(OSError):
                 srv.shutdown()
-            except Exception:
-                pass
-            try:
+            with suppress(OSError):
                 srv.server_close()
-            except Exception:
-                pass
         for thread in threads:
             thread.join(timeout=1)

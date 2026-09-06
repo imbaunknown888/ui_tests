@@ -1,11 +1,10 @@
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
-from src.main.ui.pages.login_page import LoginPage
-from src.main.ui.pages.admin_panel import AdminPanel
-from src.main.ui.pages.user_dashboard import UserDashboard
-from src.main.api.classes.api_manager import ApiManager
 from src.main.api.models.create_user_request import CreateUserRequest
+from src.main.ui.pages.admin_panel import AdminPanel
+from src.main.ui.pages.login_page import LoginPage
+from src.main.ui.pages.user_dashboard import UserDashboard
 
 
 @pytest.mark.ui

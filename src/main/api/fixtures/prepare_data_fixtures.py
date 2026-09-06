@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import pytest
 
@@ -21,17 +20,17 @@ class PreparedUserAccount:
 def _get_int_kw(mark: pytest.Mark, key: str, default: int) -> int:
     try:
         return int(mark.kwargs.get(key, default))
-    except Exception:
+    except (TypeError, ValueError):
         return int(default)
 
 
-def _get_optional_float_kw(mark: pytest.Mark, key: str) -> Optional[float]:
+def _get_optional_float_kw(mark: pytest.Mark, key: str) -> float | None:
     val = mark.kwargs.get(key)
     if val is None:
         return None
     try:
         return float(val)
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from src.main.api.models.comparison.model_comparator import ModelComparator
-from src.main.api.models.comparison.model_comparison_configuration import ModelComparisonConfigLoader
+from src.main.api.models.comparison.model_comparison_configuration import (
+    ModelComparisonConfigLoader,
+)
 
 
 class DaoAndModelAssertions:
@@ -17,10 +19,10 @@ class DaoAndModelAssertions:
         self.right = right
 
     @staticmethod
-    def assert_that(left: Any, right: Any) -> "DaoAndModelAssertions":
+    def assert_that(left: Any, right: Any) -> DaoAndModelAssertions:
         return DaoAndModelAssertions(left, right)
 
-    def match(self) -> "DaoAndModelAssertions":
+    def match(self) -> DaoAndModelAssertions:
         config_loader = ModelComparisonConfigLoader("dao-comparison.properties")
         rule = config_loader.get_rule_for(self.left)
 
