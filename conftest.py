@@ -9,6 +9,7 @@ from src.main.api.fixtures.api_fixtures import *
 from src.main.api.fixtures.assertion_fixtures import *
 from src.main.api.fixtures.fraud_fixtures import *
 from src.main.api.fixtures.object_fixtures import *
+from src.main.api.fixtures.prepare_data_fixtures import *
 from src.main.api.fixtures.setup_hook import *
 from src.main.api.fixtures.user_fixtures import *
 from src.main.api.utils.normalize_browsers import norm_browser_name
@@ -36,6 +37,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default=os.getenv("PYTEST_SEED"),
         help="Seed for random generators. If not set, a new seed is generated per run and shared across xdist workers.",
+    )
+    parser.addoption(
+        "--api-version",
+        action="store",
+        default=os.getenv("API_VERSION"),
+        help="Run only tests marked with @pytest.mark.api_version(name).",
     )
 
 
@@ -82,9 +89,15 @@ def pytest_collection_finish(session: pytest.Session) -> None:
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     preferred = "chromium"
+    api_version = config.getoption("--api-version")
     filtered: list[pytest.Item] = []
 
     for item in items:
+        if api_version:
+            version_mark = item.get_closest_marker("api_version")
+            if version_mark is None or api_version not in {str(x) for x in version_mark.args}:
+                continue
+
         is_ui = bool(item.get_closest_marker("ui"))
         browsers_mark = item.get_closest_marker("browsers")
         fixts = getattr(item, "fixturenames", ()) or ()

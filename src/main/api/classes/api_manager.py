@@ -9,3 +9,6 @@ class ApiManager:
         self.admin_steps = AdminSteps(created_objects)
         self.user_steps = UserSteps(created_objects)
         self.database_steps = DataBaseSteps
+
+
+#comment1
