@@ -8,3 +8,4 @@ Faker
 allure-pytest
 pytest-xdist
 psycopg[binary]
+ruff
