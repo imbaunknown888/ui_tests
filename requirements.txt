@@ -9,3 +9,4 @@ allure-pytest
 pytest-xdist
 psycopg[binary]
 ruff
+swagger-coverage-tool

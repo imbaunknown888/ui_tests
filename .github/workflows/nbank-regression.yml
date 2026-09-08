@@ -1,0 +1,339 @@
+name: NBank regression
+
+on:
+  push:
+    branches: [main, master, regression-in-pipeline, add-docker-compose-test-runner]
+    paths:
+      - "src/**"
+      - "requirements.txt"
+      - "infra/docker-compose/**"
+      - ".github/swagger_coverage_config.yaml"
+      - ".github/workflows/nbank-regression.yml"
+  pull_request:
+    branches: [main, master, regression-in-pipeline, add-docker-compose-test-runner]
+  workflow_dispatch:
+    inputs:
+      api_backend_tag:
+        description: "Docker image tag for API regression"
+        required: true
+        type: string
+        default: "with_fraud_check_with_transfer_fix"
+      ui_backend_tag:
+        description: "Docker image tag for UI regression"
+        required: true
+        type: string
+        default: "with_database_with_fix"
+
+env:
+  PYTHON_VERSION: "3.11"
+  API_BACKEND_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.api_backend_tag || 'with_fraud_check_with_transfer_fix' }}
+  UI_BACKEND_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.ui_backend_tag || 'with_database_with_fix' }}
+  UI_BASE_URL: http://localhost:3000
+  DB_HOST: localhost
+  SWAGGER_COVERAGE_CONFIG_FILE_YAML: ./.github/swagger_coverage_config.yaml
+
+jobs:
+  code-quality:
+    name: Code quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Ruff
+        run: ruff check --select F,E9,E722 src
+
+  api-regression:
+    name: API regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: code-quality
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start services
+        run: |
+          export NBANK_BACKEND_IMAGE="nobugsme/nbank:${API_BACKEND_TAG}"
+          echo "Using image: $NBANK_BACKEND_IMAGE"
+          docker compose -f infra/docker-compose/docker-compose.yaml up -d
+          for i in {1..60}; do
+            if curl -sf http://localhost:4111/actuator/health >/dev/null; then
+              echo "Backend is UP"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:4111/actuator/health
+
+      - name: Run API tests
+        run: |
+          pytest -o addopts="" \
+            -m api \
+            --alluredir=allure-results \
+            -vv
+
+      - name: Generate Swagger Coverage report
+        if: always()
+        run: |
+          mkdir -p swagger-coverage coverage-results
+          swagger-coverage-tool save-report
+
+      - name: Check API coverage
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+
+          required = 50.0
+          with open("swagger-coverage/coverage-report.json", encoding="utf-8") as report:
+              data = json.load(report)
+
+          coverage = float(data["servicesCoverage"]["nbank-api"]["totalCoverage"])
+          print(f"API coverage: {coverage}%")
+          print(f"Required coverage: {required}%")
+
+          if coverage < required:
+              print(f"API coverage is below {required}%")
+              sys.exit(1)
+
+          print("API coverage check passed")
+          PY
+
+      - name: Upload API Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-api
+          path: allure-results
+          if-no-files-found: ignore
+
+      - name: Upload Swagger Coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swagger-coverage
+          path: swagger-coverage
+          if-no-files-found: error
+
+      - name: Shutdown services
+        if: always()
+        run: docker compose -f infra/docker-compose/docker-compose.yaml down
+
+  ui-regression:
+    name: UI regression (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: code-quality
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start services
+        run: |
+          export NBANK_BACKEND_IMAGE="nobugsme/nbank:${UI_BACKEND_TAG}"
+          echo "Using image: $NBANK_BACKEND_IMAGE"
+          docker compose -f infra/docker-compose/docker-compose.yaml up -d
+          for i in {1..60}; do
+            if curl -sf http://localhost:4111/actuator/health >/dev/null; then
+              echo "Backend is UP"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:4111/actuator/health
+
+      - name: Run UI tests
+        run: |
+          pytest -o addopts="" \
+            -m ui \
+            --browser "${{ matrix.browser }}" \
+            --alluredir=allure-results \
+            -vv
+
+      - name: Upload UI Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ui-${{ matrix.browser }}
+          path: allure-results
+          if-no-files-found: ignore
+
+      - name: Shutdown services
+        if: always()
+        run: docker compose -f infra/docker-compose/docker-compose.yaml down
+
+  nbank-regression:
+    name: NBank regression gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [api-regression, ui-regression]
+    if: always()
+
+    steps:
+      - name: Check regression result
+        run: |
+          echo "API regression: ${{ needs.api-regression.result }}"
+          echo "UI regression: ${{ needs.ui-regression.result }}"
+
+          if [ "${{ needs.api-regression.result }}" != "success" ]; then
+            exit 1
+          fi
+
+          if [ "${{ needs.ui-regression.result }}" != "success" ]; then
+            exit 1
+          fi
+
+  publish-reports:
+    name: Publish reports to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [api-regression, ui-regression, nbank-regression]
+    if: always()
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+
+      - name: Download Swagger Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-coverage
+          path: swagger-coverage
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Prepare empty gh-pages branch
+        run: |
+          if [ ! -d gh-pages/.git ]; then
+            mkdir -p gh-pages
+          fi
+
+      - name: Install Allure CLI
+        run: npm install -g allure-commandline
+
+      - name: Generate Allure report
+        run: |
+          if compgen -G "allure-results/*" > /dev/null; then
+            allure generate allure-results --clean -o allure-report
+          else
+            mkdir -p allure-report
+            cat > allure-report/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>Allure Report</title></head>
+            <body><h1>No Allure results were generated</h1></body>
+          </html>
+          HTML
+          fi
+
+      - name: Prepare GitHub Pages structure
+        run: |
+          RUN=${{ github.run_number }}
+          mkdir -p gh-pages/test-report/$RUN/allure-report
+          mkdir -p gh-pages/test-report/$RUN/swagger-coverage
+          cp -R allure-report/. gh-pages/test-report/$RUN/allure-report/
+          cp -R swagger-coverage/. gh-pages/test-report/$RUN/swagger-coverage/
+
+      - name: Verify reports
+        run: |
+          test -f gh-pages/test-report/${{ github.run_number }}/allure-report/index.html
+          test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/index.html
+          test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/coverage-report.json
+
+      - name: Deploy reports to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: gh-pages
+          keep_files: true
+          force_orphan: false
+
+      - name: Publish report URLs
+        if: always()
+        run: |
+          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
+
+          echo "### NBank Regression Reports" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Allure Report:** ${ALLURE_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Swagger Coverage:** ${SWAGGER_URL}" >> "$GITHUB_STEP_SUMMARY"

@@ -19,7 +19,7 @@ services:
       - nbank-network
 
   backend:
-    image: nobugsme/nbank:with_database_with_fix
+    image: ${NBANK_BACKEND_IMAGE:-nobugsme/nbank:with_database_with_fix}
     container_name: nbank-app
     ports:
       - "4111:4111"
@@ -44,7 +44,7 @@ services:
   frontend:
     image: nobugsme/nbank-ui:with_nginx
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
     networks:

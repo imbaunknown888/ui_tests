@@ -61,6 +61,8 @@ class UserSteps(BaseSteps):
         deposit_request = DepositRequest(
             accountId=account_id,
             amount=amount,
+            id=account_id,
+            balance=amount,
         )
         deposit_response: DepositResponse = ValidatedCrudRequester(
             RequestSpecs.auth_as_user(user_request.username, user_request.password),
