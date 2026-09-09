@@ -13,11 +13,19 @@ on:
     branches: [main, master, regression-in-pipeline, add-docker-compose-test-runner]
   workflow_dispatch:
     inputs:
+      api_version:
+        description: "Backend version tag (matches @pytest.mark.api_version(..))"
+        required: true
+        type: choice
+        options:
+          - with_database
+          - with_fraud_check_with_transfer_fix
+        default: "with_database"
       api_backend_tag:
         description: "Docker image tag for API regression"
         required: true
         type: string
-        default: "with_fraud_check_with_transfer_fix"
+        default: "with_database_with_fix"
       ui_backend_tag:
         description: "Docker image tag for UI regression"
         required: true
@@ -26,7 +34,8 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  API_BACKEND_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.api_backend_tag || 'with_fraud_check_with_transfer_fix' }}
+  API_VERSION_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.api_version || 'with_database' }}
+  API_BACKEND_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.api_backend_tag || 'with_database_with_fix' }}
   UI_BACKEND_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.ui_backend_tag || 'with_database_with_fix' }}
   UI_BASE_URL: http://localhost:3000
   DB_HOST: localhost
@@ -103,6 +112,7 @@ jobs:
         run: |
           pytest -o addopts="" \
             -m api \
+            --api-version "$API_VERSION_INPUT" \
             --alluredir=allure-results \
             -vv
 
