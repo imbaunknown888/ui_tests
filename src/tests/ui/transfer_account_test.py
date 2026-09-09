@@ -15,11 +15,11 @@ from src.main.ui.pages.transfer_page import TransferPage
 class TestTransferAccount:
     @pytest.fixture()
     def sender_initial_balance(self) -> float:
-        return RandomData.get_amount(2000.0, 5000.0)
+        return RandomData.get_amount(700.0, 1000.0)
 
     @pytest.fixture()
     def receiver_initial_balance(self) -> float:
-        return RandomData.get_amount(1000.0, 1999.0)
+        return RandomData.get_amount(100.0, 600.0)
 
     @pytest.fixture()
     def transfer_amount(self, sender_initial_balance: float) -> float:

@@ -1,0 +1,9 @@
+services:
+  - key: "nbank-api"
+    name: "NBank API"
+    swagger_url: "http://localhost:4111/v3/api-docs"
+
+results_dir: "./coverage-results"
+history_file: "./coverage-history.json"
+html_report_file: "./swagger-coverage/index.html"
+json_report_file: "./swagger-coverage/coverage-report.json"
