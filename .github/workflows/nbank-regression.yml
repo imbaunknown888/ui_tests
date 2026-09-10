@@ -263,17 +263,9 @@ jobs:
     timeout-minutes: 15
     needs: [api-regression, ui-regression, nbank-regression]
     if: always()
-    outputs:
-      pages_url: ${{ steps.deployment.outputs.page_url }}
 
     permissions:
-      contents: read
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -373,27 +365,20 @@ jobs:
           test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/index.html
           test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/coverage-report.json
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: gh-pages
-
       - name: Deploy reports to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: gh-pages
+          keep_files: true
+          force_orphan: false
 
       - name: Publish report URLs
         if: always()
         run: |
-          PAGES_URL="${{ steps.deployment.outputs.page_url }}"
-          if [ -z "$PAGES_URL" ]; then
-            PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
-          fi
-          ALLURE_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/allure-report/"
-          SWAGGER_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/swagger-coverage/"
+          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
 
           echo "### NBank Regression Reports" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -416,12 +401,8 @@ jobs:
         id: message
         shell: bash
         run: |
-          PAGES_URL="${{ needs.publish-reports.outputs.pages_url }}"
-          if [ -z "$PAGES_URL" ]; then
-            PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
-          fi
-          ALLURE_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/allure-report/"
-          SWAGGER_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/swagger-coverage/"
+          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ needs.nbank-regression.result }}" = "success" ] && [ "${{ needs.publish-reports.result }}" = "success" ]; then
             STATUS="SUCCESS"
