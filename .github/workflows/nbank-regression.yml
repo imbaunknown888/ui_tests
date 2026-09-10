@@ -118,6 +118,7 @@ jobs:
 
       - name: Generate Swagger Coverage report
         if: always()
+        continue-on-error: true
         run: |
           mkdir -p swagger-coverage coverage-results
           swagger-coverage-tool save-report
@@ -262,9 +263,17 @@ jobs:
     timeout-minutes: 15
     needs: [api-regression, ui-regression, nbank-regression]
     if: always()
+    outputs:
+      pages_url: ${{ steps.deployment.outputs.page_url }}
 
     permissions:
-      contents: write
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -279,6 +288,7 @@ jobs:
 
       - name: Download Swagger Coverage
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: swagger-coverage
           path: swagger-coverage
@@ -299,6 +309,24 @@ jobs:
       - name: Install Allure CLI
         run: npm install -g allure-commandline
 
+      - name: Prepare Swagger Coverage fallback
+        if: always()
+        run: |
+          mkdir -p swagger-coverage
+          if [ ! -f swagger-coverage/index.html ]; then
+            cat > swagger-coverage/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>Swagger Coverage</title></head>
+            <body><h1>Swagger Coverage was not generated</h1></body>
+          </html>
+          HTML
+          fi
+
+          if [ ! -f swagger-coverage/coverage-report.json ]; then
+            echo '{"status":"not_generated"}' > swagger-coverage/coverage-report.json
+          fi
+
       - name: Generate Allure report
         run: |
           if compgen -G "allure-results/*" > /dev/null; then
@@ -317,31 +345,55 @@ jobs:
       - name: Prepare GitHub Pages structure
         run: |
           RUN=${{ github.run_number }}
+          touch gh-pages/.nojekyll
           mkdir -p gh-pages/test-report/$RUN/allure-report
           mkdir -p gh-pages/test-report/$RUN/swagger-coverage
           cp -R allure-report/. gh-pages/test-report/$RUN/allure-report/
           cp -R swagger-coverage/. gh-pages/test-report/$RUN/swagger-coverage/
+          cat > gh-pages/index.html <<HTML
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>NBank Regression Reports</title></head>
+            <body>
+              <h1>NBank Regression Reports</h1>
+              <p>Latest run: $RUN</p>
+              <ul>
+                <li><a href="test-report/$RUN/allure-report/">Allure Report</a></li>
+                <li><a href="test-report/$RUN/swagger-coverage/">Swagger Coverage</a></li>
+              </ul>
+            </body>
+          </html>
+          HTML
 
       - name: Verify reports
         run: |
+          test -f gh-pages/.nojekyll
+          test -f gh-pages/index.html
           test -f gh-pages/test-report/${{ github.run_number }}/allure-report/index.html
           test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/index.html
           test -f gh-pages/test-report/${{ github.run_number }}/swagger-coverage/coverage-report.json
 
-      - name: Deploy reports to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: gh-pages
-          keep_files: true
-          force_orphan: false
+          path: gh-pages
+
+      - name: Deploy reports to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Publish report URLs
         if: always()
         run: |
-          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
-          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
+          PAGES_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          fi
+          ALLURE_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/swagger-coverage/"
 
           echo "### NBank Regression Reports" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -364,8 +416,12 @@ jobs:
         id: message
         shell: bash
         run: |
-          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
-          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
+          PAGES_URL="${{ needs.publish-reports.outputs.pages_url }}"
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          fi
+          ALLURE_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="${PAGES_URL%/}/test-report/${{ github.run_number }}/swagger-coverage/"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ needs.nbank-regression.result }}" = "success" ] && [ "${{ needs.publish-reports.result }}" = "success" ]; then
             STATUS="SUCCESS"
