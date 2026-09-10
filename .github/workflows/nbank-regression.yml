@@ -347,3 +347,64 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Allure Report:** ${ALLURE_URL}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Swagger Coverage:** ${SWAGGER_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+  telegram-notification:
+    name: Send Telegram notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - code-quality
+      - api-regression
+      - ui-regression
+      - nbank-regression
+      - publish-reports
+    if: always()
+    steps:
+      - name: Build notification message
+        id: message
+        shell: bash
+        run: |
+          ALLURE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/allure-report/"
+          SWAGGER_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/test-report/${{ github.run_number }}/swagger-coverage/"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ needs.nbank-regression.result }}" = "success" ] && [ "${{ needs.publish-reports.result }}" = "success" ]; then
+            STATUS="SUCCESS"
+          else
+            STATUS="FAILED"
+          fi
+          {
+            echo "message<<EOF"
+            echo "NBank regression: ${STATUS}"
+            echo ""
+            echo "Repository: ${{ github.repository }}"
+            echo "Branch: ${{ github.ref_name }}"
+            echo "Run number: ${{ github.run_number }}"
+            echo ""
+            echo "Jobs:"
+            echo "- Code quality: ${{ needs.code-quality.result }}"
+            echo "- API regression: ${{ needs.api-regression.result }}"
+            echo "- UI regression: ${{ needs.ui-regression.result }}"
+            echo "- Regression gate: ${{ needs.nbank-regression.result }}"
+            echo "- Publish reports: ${{ needs.publish-reports.result }}"
+            echo ""
+            echo "Reports:"
+            echo "- Allure Report: ${ALLURE_URL}"
+            echo "- Swagger Coverage: ${SWAGGER_URL}"
+            echo ""
+            echo "GitHub Actions: ${RUN_URL}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Send Telegram message
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MESSAGE: ${{ steps.message.outputs.message }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets are not configured"
+            exit 1
+          fi
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MESSAGE}" \
+            -d "disable_web_page_preview=true"
