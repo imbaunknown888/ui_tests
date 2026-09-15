@@ -1,0 +1,10 @@
+{{- if .Values.selenoid.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: selenoid-config
+  namespace: {{ .Values.namespace.name }}
+data:
+  browsers.json: |
+{{ .Values.selenoid.browsersJson | indent 4 }}
+{{- end }}

@@ -1,0 +1,34 @@
+{{- if .Values.selenoid.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selenoid
+  namespace: {{ .Values.namespace.name }}
+spec:
+  replicas: {{ .Values.selenoid.replicas }}
+  selector:
+    matchLabels:
+      app: selenoid
+  template:
+    metadata:
+      labels:
+        app: selenoid
+    spec:
+      containers:
+        - name: selenoid
+          image: {{ .Values.selenoid.image }}
+          args:
+            - -conf
+            - /etc/selenoid/browsers.json
+            - -listen
+            - :4444
+          ports:
+            - containerPort: 4444
+          volumeMounts:
+            - name: selenoid-config
+              mountPath: /etc/selenoid
+      volumes:
+        - name: selenoid-config
+          configMap:
+            name: selenoid-config
+{{- end }}

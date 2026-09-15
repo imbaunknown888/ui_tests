@@ -1,0 +1,57 @@
+namespace:
+  create: true
+  name: nbank
+postgres:
+  image: postgres:15
+  replicas: 1
+  database: nbank
+  username: postgres
+  password: postgres
+  service:
+    port: 5432
+backend:
+  image: nobugsme/nbank:with_database_with_fix
+  replicas: 1
+  service:
+    type: NodePort
+    port: 4111
+    nodePort: 30111
+  env:
+    fraudDetectionServiceUrl: http://selenoid:4444
+frontend:
+  image: nobugsme/nbank-ui:with_nginx
+  replicas: 1
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30080
+selenoid:
+  enabled: true
+  image: aerokube/selenoid:latest-release
+  replicas: 1
+  service:
+    type: NodePort
+    port: 4444
+    nodePort: 30444
+  browsersJson: |
+    {
+      "chrome": {
+        "default": "121.0",
+        "versions": {
+          "121.0": {
+            "image": "selenoid/chrome:121.0",
+            "port": "4444",
+            "path": "/"
+          }
+        }
+      }
+    }
+tests:
+  enabled: true
+  image: nbank-tests:latest
+  imagePullPolicy: Never
+  command:
+    - pytest
+    - --ignore=src/tests/api/transfer_with_fraud_check_test.py
+    - -m
+    - api or ui
