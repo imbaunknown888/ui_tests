@@ -1,0 +1,4 @@
+services:
+  - key: nbank-api
+    name: NBank API
+    swagger_url: http://backend:4111/v3/api-docs

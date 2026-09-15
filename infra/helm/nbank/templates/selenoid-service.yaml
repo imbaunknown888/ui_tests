@@ -1,0 +1,16 @@
+{{- if .Values.selenoid.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: selenoid
+  namespace: {{ .Values.namespace.name }}
+spec:
+  type: {{ .Values.selenoid.service.type }}
+  selector:
+    app: selenoid
+  ports:
+    - name: webdriver
+      port: {{ .Values.selenoid.service.port }}
+      targetPort: 4444
+      nodePort: {{ .Values.selenoid.service.nodePort }}
+{{- end }}

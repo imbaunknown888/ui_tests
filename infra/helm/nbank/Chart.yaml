@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nbank
+description: Helm chart for NBank backend, frontend, postgres, selenoid and test job
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
